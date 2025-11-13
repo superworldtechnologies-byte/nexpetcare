@@ -26,6 +26,8 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+                suppressHydrationWarning // ✅ Add this to suppress browser extension warnings
+
       >
         {children}
       </body>

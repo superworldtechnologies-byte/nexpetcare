@@ -23,39 +23,90 @@ model PlatformAdmin {
 // Tenant/Store Model
 model Tenant {
   id    String  @id @default(cuid())
-  name  String // Store/Clinic name
-  slug  String  @unique // URL slug (e.g., "pawsome-grooming")
+  name  String
+  slug  String  @unique
   email String  @unique
   phone String?
 
-  // Subscription info
-  stripeCustomerId       String?   @unique
-  stripeSubscriptionId   String?   @unique
-  stripePriceId          String?
-  stripeCurrentPeriodEnd DateTime?
-  subscriptionStatus     String    @default("active") // active, canceled, past_due
+  // ========== CORE STRIPE FIELDS ==========
+  stripeCustomerId         String?   @unique
+  stripeSubscriptionId     String?   @unique
+  stripePriceId            String?
+  stripeCurrentPeriodStart DateTime?
+  stripeCurrentPeriodEnd   DateTime?
+  subscriptionStatus       String    @default("pending")
+  subscriptionPlan         String? // "monthly" or "yearly"
 
-  // OTP verification
-  emailVerified Boolean   @default(false)
-  otpCode       String?
-  otpExpiry     DateTime?
+  // ========== BILLING ==========
+  lastPaymentDate       DateTime?
+  nextPaymentDate       DateTime?
+  failedPaymentAttempts Int       @default(0)
 
-  // Store settings (JSON for dynamic website content)
-  websiteData Json? // Stores hero text, about, images URLs etc
+  // ========== STATUS ==========
+  isActive      Boolean @default(true)
+  emailVerified Boolean @default(false)
 
+  // ========== OTP ==========
+  otpCode   String?
+  otpExpiry DateTime?
+
+  // ========== CONTENT ==========
+  websiteData Json?
+
+  // ========== TIMESTAMPS ==========
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
+  // ========== RELATIONS ==========
   admins      TenantAdmin[]
   customers   Customer[]
   services    Service[]
   bookings    Booking[]
   coupons     Coupon[]
   teamMembers TeamMember[]
+  paymentLogs PaymentLog[]
+  tenantUsage TenantUsage?
 
   @@index([slug])
   @@index([email])
+  @@index([subscriptionStatus])
+}
+
+model PaymentLog {
+  id String @id @default(cuid())
+
+  stripeInvoiceId String?
+  amount          Int
+  status          String
+  description     String?
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+// ========== USAGE TRACKING (Optional) ==========
+model TenantUsage {
+  id String @id @default(cuid())
+
+  // Limits
+  maxTeamMembers      Int @default(15)
+  maxCustomers        Int @default(1000)
+  maxBookingsPerMonth Int @default(9999)
+
+  // Current usage
+  currentTeamMembers Int @default(0)
+  currentCustomers   Int @default(0)
+  currentBookings    Int @default(0)
+
+  // Relation
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  updatedAt DateTime @updatedAt
 }
 
 // ==================== TENANT ADMIN (Auth handled separately) ====================
